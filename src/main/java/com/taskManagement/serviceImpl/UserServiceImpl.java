@@ -1,6 +1,9 @@
 package com.taskManagement.serviceImpl;
 
+import com.taskManagement.dto.user.*;
 import com.taskManagement.entity.User;
+import com.taskManagement.mapper.UserMapper;
+
 import com.taskManagement.repository.UserRepository;
 import com.taskManagement.service.UserService;
 import lombok.RequiredArgsConstructor;
@@ -21,82 +24,110 @@ import java.util.UUID;
 public class UserServiceImpl implements UserService {
 
     private final UserRepository userRepository;
+    private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
 
+    // ==================== BASIC CRUD OPERATIONS ====================
+
     @Override
-    public User createUser(User user) {
-        log.info("Creating new user with username: {}", user.getUsername());
+    public UserResponseDTO createUser(UserCreateDTO userCreateDTO) {
+        log.info("Creating user with username: {}", userCreateDTO.getUsername());
 
         // Validate unique constraints
-        if (existsByUsername(user.getUsername())) {
-            throw new IllegalArgumentException("Username already exists: " + user.getUsername());
+        if (userRepository.existsByUsername(userCreateDTO.getUsername())) {
+            throw new IllegalArgumentException("Username already exists: " + userCreateDTO.getUsername());
+        }
+        if (userRepository.existsByEmail(userCreateDTO.getEmail())) {
+            throw new IllegalArgumentException("Email already exists: " + userCreateDTO.getEmail());
         }
 
-        if (existsByEmail(user.getEmail())) {
-            throw new IllegalArgumentException("Email already exists: " + user.getEmail());
-        }
+        // Convert DTO to Entity
+        User user = userMapper.toEntity(userCreateDTO);
 
-        // Encode password and set defaults
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        // Encode password
+        user.setPassword(passwordEncoder.encode(userCreateDTO.getPassword()));
+
+        // Set default values
         user.setIsActive(true);
         user.setEmailVerified(false);
-        user.setCreatedAt(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
+        user.setEmailVerificationToken(UUID.randomUUID().toString());
 
+        // Save user
         User savedUser = userRepository.save(user);
+
         log.info("User created successfully with ID: {}", savedUser.getId());
-        return savedUser;
+        return userMapper.toResponseDTO(savedUser);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<User> getUserById(Long id) {
-        return userRepository.findById(id);
+    public Optional<UserResponseDTO> getUserById(Long id) {
+        log.debug("Fetching user by ID: {}", id);
+        return userRepository.findById(id)
+                .map(userMapper::toResponseDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<User> getUserByUsername(String username) {
-        return userRepository.findByUsername(username);
+    public Optional<UserResponseDTO> getUserByUsername(String username) {
+        log.debug("Fetching user by username: {}", username);
+        return userRepository.findByUsername(username)
+                .map(userMapper::toResponseDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Optional<User> getUserByEmail(String email) {
-        return userRepository.findByEmail(email);
+    public Optional<UserResponseDTO> getUserByEmail(String email) {
+        log.debug("Fetching user by email: {}", email);
+        return userRepository.findByEmail(email)
+                .map(userMapper::toResponseDTO);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    public List<UserResponseDTO> getAllUsers() {
+        log.debug("Fetching all users");
+        List<User> users = userRepository.findAll();
+        return userMapper.toResponseDTOList(users);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public List<User> getAllActiveUsers() {
-        return userRepository.findByIsActiveTrue();
+    public List<UserResponseDTO> getAllActiveUsers() {
+        log.debug("Fetching all active users");
+        List<User> users = userRepository.findByIsActiveTrue();
+        return userMapper.toResponseDTOList(users);
     }
 
     @Override
-    public User updateUser(Long id, User user) {
+    @Transactional(readOnly = true)
+    public List<UserSummaryDTO> getAllUsersSummary() {
+        log.debug("Fetching all users summary");
+        List<User> users = userRepository.findAll();
+        return userMapper.toSummaryDTOList(users);
+    }
+
+    @Override
+    public UserResponseDTO updateUser(Long id, UserUpdateDTO userUpdateDTO) {
         log.info("Updating user with ID: {}", id);
 
-        User existingUser = userRepository.findById(id)
+        User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + id));
 
-        // Update fields
-        existingUser.setFirstName(user.getFirstName());
-        existingUser.setLastName(user.getLastName());
-        existingUser.setEmail(user.getEmail());
-        existingUser.setPhoneNumber(user.getPhoneNumber());
-        existingUser.setJobTitle(user.getJobTitle());
-        existingUser.setBio(user.getBio());
-        existingUser.setUpdatedAt(LocalDateTime.now());
+        // Check email uniqueness if email is being updated
+        if (userUpdateDTO.getEmail() != null && !userUpdateDTO.getEmail().equals(user.getEmail())) {
+            if (userRepository.existsByEmail(userUpdateDTO.getEmail())) {
+                throw new IllegalArgumentException("Email already exists: " + userUpdateDTO.getEmail());
+            }
+        }
 
-        User updatedUser = userRepository.save(existingUser);
+        // Update fields
+        userMapper.updateEntityFromDTO(user, userUpdateDTO);
+
+        User updatedUser = userRepository.save(user);
         log.info("User updated successfully with ID: {}", updatedUser.getId());
-        return updatedUser;
+
+        return userMapper.toResponseDTO(updatedUser);
     }
 
     @Override
@@ -119,7 +150,6 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + id));
 
         user.setIsActive(false);
-        user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
         log.info("User deactivated successfully with ID: {}", id);
@@ -133,11 +163,12 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + id));
 
         user.setIsActive(true);
-        user.setUpdatedAt(LocalDateTime.now());
         userRepository.save(user);
 
         log.info("User activated successfully with ID: {}", id);
     }
+
+    // ==================== AUTHENTICATION & VALIDATION ====================
 
     @Override
     @Transactional(readOnly = true)
@@ -151,6 +182,8 @@ public class UserServiceImpl implements UserService {
         return userRepository.existsByEmail(email);
     }
 
+    // ==================== PASSWORD MANAGEMENT ====================
+
     @Override
     public void generatePasswordResetToken(String email) {
         log.info("Generating password reset token for email: {}", email);
@@ -158,14 +191,13 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with email: " + email));
 
-        String resetToken = UUID.randomUUID().toString();
-        user.setPasswordResetToken(resetToken);
-        user.setPasswordResetExpires(LocalDateTime.now().plusHours(24));
-        user.setUpdatedAt(LocalDateTime.now());
+        String token = UUID.randomUUID().toString();
+        user.setPasswordResetToken(token);
+        user.setPasswordResetExpires(LocalDateTime.now().plusHours(1)); // 1 hour expiry
 
         userRepository.save(user);
 
-        // Here you would typically send email with reset link
+        // TODO: Send email with reset token
         log.info("Password reset token generated for user: {}", user.getUsername());
     }
 
@@ -174,16 +206,15 @@ public class UserServiceImpl implements UserService {
         log.info("Resetting password with token");
 
         User user = userRepository.findByPasswordResetToken(token)
-                .orElseThrow(() -> new IllegalArgumentException("Invalid reset token"));
+                .orElseThrow(() -> new IllegalArgumentException("Invalid password reset token"));
 
         if (user.getPasswordResetExpires().isBefore(LocalDateTime.now())) {
-            throw new IllegalArgumentException("Reset token has expired");
+            throw new IllegalArgumentException("Password reset token has expired");
         }
 
         user.setPassword(passwordEncoder.encode(newPassword));
         user.setPasswordResetToken(null);
         user.setPasswordResetExpires(null);
-        user.setUpdatedAt(LocalDateTime.now());
 
         userRepository.save(user);
 
@@ -192,57 +223,61 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
-    public void changePassword(Long userId, String oldPassword, String newPassword) {
+    public void changePassword(Long userId, PasswordChangeDTO passwordChangeDTO) {
         log.info("Changing password for user ID: {}", userId);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + userId));
 
-        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+        // Verify current password
+        if (!passwordEncoder.matches(passwordChangeDTO.getCurrentPassword(), user.getPassword())) {
             throw new IllegalArgumentException("Current password is incorrect");
         }
 
-        user.setPassword(passwordEncoder.encode(newPassword));
-        user.setUpdatedAt(LocalDateTime.now());
+        // Validate new password confirmation
+        if (!passwordChangeDTO.getNewPassword().equals(passwordChangeDTO.getConfirmPassword())) {
+            throw new IllegalArgumentException("New password and confirmation do not match");
+        }
 
+        user.setPassword(passwordEncoder.encode(passwordChangeDTO.getNewPassword()));
         userRepository.save(user);
 
         log.info("Password changed successfully for user: {}", user.getUsername());
     }
 
+    // ==================== PROFILE MANAGEMENT ====================
+
     @Override
-    public User updateProfile(Long id, String firstName, String lastName, String phoneNumber, String jobTitle, String bio) {
+    public UserResponseDTO updateProfile(Long id, UserProfileDTO profileDTO) {
         log.info("Updating profile for user ID: {}", id);
 
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + id));
 
-        user.setFirstName(firstName);
-        user.setLastName(lastName);
-        user.setPhoneNumber(phoneNumber);
-        user.setJobTitle(jobTitle);
-        user.setBio(bio);
-        user.setUpdatedAt(LocalDateTime.now());
+        userMapper.updateProfileFromDTO(user, profileDTO);
 
         User updatedUser = userRepository.save(user);
         log.info("Profile updated successfully for user: {}", user.getUsername());
-        return updatedUser;
+
+        return userMapper.toResponseDTO(updatedUser);
     }
 
     @Override
-    public User updateProfilePicture(Long id, String profilePictureUrl) {
+    public UserResponseDTO updateProfilePicture(Long id, String profilePictureUrl) {
         log.info("Updating profile picture for user ID: {}", id);
 
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + id));
 
         user.setProfilePictureUrl(profilePictureUrl);
-        user.setUpdatedAt(LocalDateTime.now());
 
         User updatedUser = userRepository.save(user);
         log.info("Profile picture updated successfully for user: {}", user.getUsername());
-        return updatedUser;
+
+        return userMapper.toResponseDTO(updatedUser);
     }
+
+    // ==================== EMAIL VERIFICATION ====================
 
     @Override
     public void sendEmailVerification(Long userId) {
@@ -251,14 +286,15 @@ public class UserServiceImpl implements UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + userId));
 
-        String verificationToken = UUID.randomUUID().toString();
-        user.setEmailVerificationToken(verificationToken);
-        user.setUpdatedAt(LocalDateTime.now());
+        if (user.getEmailVerified()) {
+            throw new IllegalArgumentException("Email is already verified");
+        }
 
+        user.setEmailVerificationToken(UUID.randomUUID().toString());
         userRepository.save(user);
 
-        // Here you would typically send verification email
-        log.info("Email verification sent for user: {}", user.getUsername());
+        // TODO: Send email with verification token
+        log.info("Email verification token generated for user: {}", user.getUsername());
     }
 
     @Override
@@ -269,17 +305,33 @@ public class UserServiceImpl implements UserService {
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + userId));
 
         if (!verificationToken.equals(user.getEmailVerificationToken())) {
-            throw new IllegalArgumentException("Invalid verification token");
+            throw new IllegalArgumentException("Invalid email verification token");
         }
 
         user.setEmailVerified(true);
         user.setEmailVerificationToken(null);
-        user.setUpdatedAt(LocalDateTime.now());
 
         userRepository.save(user);
 
         log.info("Email verified successfully for user: {}", user.getUsername());
         return true;
     }
+
+    // ==================== INTERNAL METHODS ====================
+
+    @Override
+    @Transactional(readOnly = true)
+    public User findUserEntityById(Long id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + id));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public User findUserEntityByUsername(String username) {
+        return userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found with username: " + username));
+    }
+
 }
 

@@ -1,11 +1,13 @@
 package com.taskManagement.controller;
 
-import com.taskManagement.entity.User;
+import com.taskManagement.dto.user.*;
 import com.taskManagement.service.UserService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -16,16 +18,17 @@ import java.util.Optional;
 @RequiredArgsConstructor
 @Slf4j
 @CrossOrigin(origins = "*")
+@Validated
 public class UserController {
     private final UserService userService;
 
     // ==================== BASIC CRUD OPERATIONS ====================
 
     @PostMapping
-    public ResponseEntity<User> createUser(@RequestBody User user) {
-        log.info("Creating user: {}", user.getUsername());
+    public ResponseEntity<UserResponseDTO> createUser(@Valid @RequestBody UserCreateDTO userCreateDTO) {
+        log.info("Creating user: {}", userCreateDTO.getUsername());
         try {
-            User createdUser = userService.createUser(user);
+            UserResponseDTO createdUser = userService.createUser(userCreateDTO);
             return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
         } catch (IllegalArgumentException e) {
             log.error("Error creating user: {}", e.getMessage());
@@ -34,48 +37,56 @@ public class UserController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<User> getUserById(@PathVariable Long id) {
+    public ResponseEntity<UserResponseDTO> getUserById(@PathVariable Long id) {
         log.info("Getting user by ID: {}", id);
-        Optional<User> user = userService.getUserById(id);
+        Optional<UserResponseDTO> user = userService.getUserById(id);
         return user.map(u -> new ResponseEntity<>(u, HttpStatus.OK))
                 .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
     @GetMapping("/username/{username}")
-    public ResponseEntity<User> getUserByUsername(@PathVariable String username) {
+    public ResponseEntity<UserResponseDTO> getUserByUsername(@PathVariable String username) {
         log.info("Getting user by username: {}", username);
-        Optional<User> user = userService.getUserByUsername(username);
+        Optional<UserResponseDTO> user = userService.getUserByUsername(username);
         return user.map(u -> new ResponseEntity<>(u, HttpStatus.OK))
                 .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
     @GetMapping("/email/{email}")
-    public ResponseEntity<User> getUserByEmail(@PathVariable String email) {
+    public ResponseEntity<UserResponseDTO> getUserByEmail(@PathVariable String email) {
         log.info("Getting user by email: {}", email);
-        Optional<User> user = userService.getUserByEmail(email);
+        Optional<UserResponseDTO> user = userService.getUserByEmail(email);
         return user.map(u -> new ResponseEntity<>(u, HttpStatus.OK))
                 .orElse(new ResponseEntity<>(HttpStatus.NOT_FOUND));
     }
 
     @GetMapping
-    public ResponseEntity<List<User>> getAllUsers() {
+    public ResponseEntity<List<UserResponseDTO>> getAllUsers() {
         log.info("Getting all users");
-        List<User> users = userService.getAllUsers();
+        List<UserResponseDTO> users = userService.getAllUsers();
         return new ResponseEntity<>(users, HttpStatus.OK);
     }
 
     @GetMapping("/active")
-    public ResponseEntity<List<User>> getAllActiveUsers() {
+    public ResponseEntity<List<UserResponseDTO>> getAllActiveUsers() {
         log.info("Getting all active users");
-        List<User> users = userService.getAllActiveUsers();
+        List<UserResponseDTO> users = userService.getAllActiveUsers();
+        return new ResponseEntity<>(users, HttpStatus.OK);
+    }
+
+    @GetMapping("/summary")
+    public ResponseEntity<List<UserSummaryDTO>> getAllUsersSummary() {
+        log.info("Getting all users summary");
+        List<UserSummaryDTO> users = userService.getAllUsersSummary();
         return new ResponseEntity<>(users, HttpStatus.OK);
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<User> updateUser(@PathVariable Long id, @RequestBody User user) {
+    public ResponseEntity<UserResponseDTO> updateUser(@PathVariable Long id,
+                                                      @Valid @RequestBody UserUpdateDTO userUpdateDTO) {
         log.info("Updating user with ID: {}", id);
         try {
-            User updatedUser = userService.updateUser(id, user);
+            UserResponseDTO updatedUser = userService.updateUser(id, userUpdateDTO);
             return new ResponseEntity<>(updatedUser, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             log.error("Error updating user: {}", e.getMessage());
@@ -138,7 +149,7 @@ public class UserController {
     // ==================== PASSWORD MANAGEMENT ====================
 
     @PostMapping("/password/reset-request")
-    public ResponseEntity<String> generatePasswordResetToken(@RequestBody PasswordResetRequest request) {
+    public ResponseEntity<String> generatePasswordResetToken(@Valid @RequestBody PasswordResetDTO request) {
         log.info("Generating password reset token for email: {}", request.getEmail());
         try {
             userService.generatePasswordResetToken(request.getEmail());
@@ -149,27 +160,12 @@ public class UserController {
         }
     }
 
-    @PostMapping("/password/reset")
-    public ResponseEntity<String> resetPassword(@RequestBody PasswordResetConfirm request) {
-        log.info("Resetting password with token");
+    @PostMapping("/password/change/{userId}")
+    public ResponseEntity<String> changePassword(@PathVariable Long userId,
+                                                 @Valid @RequestBody PasswordChangeDTO request) {
+        log.info("Changing password for user ID: {}", userId);
         try {
-            boolean success = userService.resetPassword(request.getToken(), request.getNewPassword());
-            if (success) {
-                return new ResponseEntity<>("Password reset successfully", HttpStatus.OK);
-            } else {
-                return new ResponseEntity<>("Failed to reset password", HttpStatus.BAD_REQUEST);
-            }
-        } catch (IllegalArgumentException e) {
-            log.error("Error resetting password: {}", e.getMessage());
-            return new ResponseEntity<>(e.getMessage(), HttpStatus.BAD_REQUEST);
-        }
-    }
-
-    @PostMapping("/password/change")
-    public ResponseEntity<String> changePassword(@RequestBody PasswordChangeRequest request) {
-        log.info("Changing password for user ID: {}", request.getUserId());
-        try {
-            userService.changePassword(request.getUserId(), request.getOldPassword(), request.getNewPassword());
+            userService.changePassword(userId, request);
             return new ResponseEntity<>("Password changed successfully", HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             log.error("Error changing password: {}", e.getMessage());
@@ -180,11 +176,11 @@ public class UserController {
     // ==================== PROFILE MANAGEMENT ====================
 
     @PatchMapping("/{id}/profile")
-    public ResponseEntity<User> updateProfile(@PathVariable Long id, @RequestBody ProfileUpdateRequest request) {
+    public ResponseEntity<UserResponseDTO> updateProfile(@PathVariable Long id,
+                                                         @Valid @RequestBody UserProfileDTO profileDTO) {
         log.info("Updating profile for user ID: {}", id);
         try {
-            User updatedUser = userService.updateProfile(id, request.getFirstName(),
-                    request.getLastName(), request.getPhoneNumber(), request.getJobTitle(), request.getBio());
+            UserResponseDTO updatedUser = userService.updateProfile(id, profileDTO);
             return new ResponseEntity<>(updatedUser, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             log.error("Error updating profile: {}", e.getMessage());
@@ -193,10 +189,11 @@ public class UserController {
     }
 
     @PatchMapping("/{id}/profile-picture")
-    public ResponseEntity<User> updateProfilePicture(@PathVariable Long id, @RequestBody ProfilePictureRequest request) {
+    public ResponseEntity<UserResponseDTO> updateProfilePicture(@PathVariable Long id,
+                                                                @RequestBody ProfilePictureRequest request) {
         log.info("Updating profile picture for user ID: {}", id);
         try {
-            User updatedUser = userService.updateProfilePicture(id, request.getProfilePictureUrl());
+            UserResponseDTO updatedUser = userService.updateProfilePicture(id, request.getProfilePictureUrl());
             return new ResponseEntity<>(updatedUser, HttpStatus.OK);
         } catch (IllegalArgumentException e) {
             log.error("Error updating profile picture: {}", e.getMessage());
@@ -219,7 +216,8 @@ public class UserController {
     }
 
     @PostMapping("/{id}/email/verify")
-    public ResponseEntity<String> verifyEmail(@PathVariable Long id, @RequestBody EmailVerificationRequest request) {
+    public ResponseEntity<String> verifyEmail(@PathVariable Long id,
+                                              @RequestBody EmailVerificationRequest request) {
         log.info("Verifying email for user ID: {}", id);
         try {
             boolean success = userService.verifyEmail(id, request.getVerificationToken());
@@ -234,52 +232,7 @@ public class UserController {
         }
     }
 
-    // ==================== REQUEST/RESPONSE CLASSES ====================
-
-    public static class PasswordResetRequest {
-        private String email;
-        public String getEmail() { return email; }
-        public void setEmail(String email) { this.email = email; }
-    }
-
-    public static class PasswordResetConfirm {
-        private String token;
-        private String newPassword;
-        public String getToken() { return token; }
-        public void setToken(String token) { this.token = token; }
-        public String getNewPassword() { return newPassword; }
-        public void setNewPassword(String newPassword) { this.newPassword = newPassword; }
-    }
-
-    public static class PasswordChangeRequest {
-        private Long userId;
-        private String oldPassword;
-        private String newPassword;
-        public Long getUserId() { return userId; }
-        public void setUserId(Long userId) { this.userId = userId; }
-        public String getOldPassword() { return oldPassword; }
-        public void setOldPassword(String oldPassword) { this.oldPassword = oldPassword; }
-        public String getNewPassword() { return newPassword; }
-        public void setNewPassword(String newPassword) { this.newPassword = newPassword; }
-    }
-
-    public static class ProfileUpdateRequest {
-        private String firstName;
-        private String lastName;
-        private String phoneNumber;
-        private String jobTitle;
-        private String bio;
-        public String getFirstName() { return firstName; }
-        public void setFirstName(String firstName) { this.firstName = firstName; }
-        public String getLastName() { return lastName; }
-        public void setLastName(String lastName) { this.lastName = lastName; }
-        public String getPhoneNumber() { return phoneNumber; }
-        public void setPhoneNumber(String phoneNumber) { this.phoneNumber = phoneNumber; }
-        public String getJobTitle() { return jobTitle; }
-        public void setJobTitle(String jobTitle) { this.jobTitle = jobTitle; }
-        public String getBio() { return bio; }
-        public void setBio(String bio) { this.bio = bio; }
-    }
+    // ==================== REQUEST CLASSES ====================
 
     public static class ProfilePictureRequest {
         private String profilePictureUrl;
@@ -292,5 +245,6 @@ public class UserController {
         public String getVerificationToken() { return verificationToken; }
         public void setVerificationToken(String verificationToken) { this.verificationToken = verificationToken; }
     }
+
 
 }
