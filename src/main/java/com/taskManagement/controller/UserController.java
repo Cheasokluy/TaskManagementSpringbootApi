@@ -10,7 +10,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -25,15 +27,23 @@ public class UserController {
     // ==================== BASIC CRUD OPERATIONS ====================
 
     @PostMapping
-    public ResponseEntity<UserResponseDTO> createUser(@Valid @RequestBody UserCreateDTO userCreateDTO) {
+    public ResponseEntity<?> createUser(@Valid @RequestBody UserCreateDTO userCreateDTO) {
         log.info("Creating user: {}", userCreateDTO.getUsername());
         try {
             UserResponseDTO createdUser = userService.createUser(userCreateDTO);
-            return new ResponseEntity<>(createdUser, HttpStatus.CREATED);
+            return ResponseEntity.status(HttpStatus.CREATED).body(createdUser);
         } catch (IllegalArgumentException e) {
             log.error("Error creating user: {}", e.getMessage());
-            return new ResponseEntity<>(null, HttpStatus.BAD_REQUEST);
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+        } catch (Exception e) {
+            log.error("Unexpected error creating user: ", e);
+            Map<String, String> errorResponse = new HashMap<>();
+            errorResponse.put("error", "Failed to create user: " + e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
         }
+
     }
 
     @GetMapping("/{id}")
