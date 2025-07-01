@@ -69,6 +69,10 @@ public class User implements UserDetails {
     @Column(name = "password_reset_expires")
     private LocalDateTime passwordResetExpires;
 
+    @Column(name = "email_verification_token")
+    private String emailVerificationToken;
+
+
     @Column(name = "created_at")
     private LocalDateTime createdAt;
 
