@@ -1,5 +1,10 @@
 package com.taskManagement.service;
 
+import com.taskManagement.dto.project.ProjectCreateDTO;
+import com.taskManagement.dto.project.ProjectResponseDTO;
+import com.taskManagement.dto.project.ProjectSummaryDTO;
+import com.taskManagement.dto.project.ProjectUpdateDTO;
+import com.taskManagement.entity.Priority;
 import com.taskManagement.entity.Project;
 import com.taskManagement.entity.ProjectStatus;
 
@@ -7,49 +12,33 @@ import java.util.List;
 import java.util.Optional;
 
 public interface ProjectService {
-    // Basic CRUD operations
-    Project createProject(Project project);
-
-    Optional<Project> getProjectById(Long id);
-
-    List<Project> getAllProjects();
-
-    Project updateProject(Long id, Project project);
-
+    // ==================== BASIC CRUD OPERATIONS (DTO-based) ====================
+    ProjectResponseDTO createProject(ProjectCreateDTO projectCreateDTO);
+    Optional<ProjectResponseDTO> getProjectById(Long id);
+    List<ProjectResponseDTO> getAllProjects();
+    List<ProjectSummaryDTO> getAllProjectsSummary();
+    ProjectResponseDTO updateProject(Long id, ProjectUpdateDTO projectUpdateDTO);
     void deleteProject(Long id);
 
-    // Project by team
-    List<Project> getProjectsByTeamId(Long teamId);
+    // ==================== FILTER & SEARCH OPERATIONS ====================
+    List<ProjectResponseDTO> getProjectsByStatus(ProjectStatus status);
+    List<ProjectResponseDTO> getProjectsByPriority(Priority priority);
+    List<ProjectResponseDTO> getProjectsByTeam(Long teamId);
+    List<ProjectResponseDTO> getProjectsByManager(Long managerId);
+    List<ProjectResponseDTO> getActiveProjects();
+    List<ProjectResponseDTO> getOverdueProjects();
 
-    List<Project> getProjectsByTeamIdOrderByDate(Long teamId);
+    // ==================== STATUS MANAGEMENT ====================
+    ProjectResponseDTO updateProjectStatus(Long id, ProjectStatus status);
+    ProjectResponseDTO updateProjectProgress(Long id, Integer progressPercentage);
 
-    List<Project> getProjectsByTeamIdAndStatus(Long teamId, ProjectStatus status);
+    // ==================== VALIDATION & UTILITY ====================
+    boolean existsByName(String name);
+    boolean existsByNameAndIdNot(String name, Long id);
 
-    List<Project> getProjectsByTeamIdAndStatusOrderByDate(Long teamId, ProjectStatus status);
-
-    // Project by manager
-    List<Project> getProjectsByManagerId(Long managerId);
-
-    // Project status management
-    Project updateProjectStatus(Long id, ProjectStatus status);
-
-    Project updateProjectProgress(Long id, Integer progressPercentage);
-
-    // Project statistics
-    long countProjectsByTeamAndStatus(Long teamId, ProjectStatus status);
-
-    Double getTotalBudgetByTeam(Long teamId);
-
-    List<Project> getProjectsDueSoon(Long teamId, int daysAhead);
-
-    // Project validation
-    boolean isUserProjectManager(Long userId, Long projectId);
-
-    boolean canUserAccessProject(Long userId, Long projectId);
-
-    // Project assignment
-    Project assignProjectManager(Long projectId, Long managerId);
-
-    Project changeTeam(Long projectId, Long newTeamId);
+    // ==================== INTERNAL METHODS (Entity-based for other services) ====================
+    Project findProjectEntityById(Long id);
+    Project createProjectEntity(Project project);
+    List<Project> findAllProjectEntities();
 
 }
