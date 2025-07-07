@@ -1,85 +1,77 @@
 package com.taskManagement.service;
 
+import com.taskManagement.dto.task.*;
+import com.taskManagement.entity.Priority;
 import com.taskManagement.entity.Task;
 import com.taskManagement.entity.TaskStatus;
-import com.taskManagement.entity.Priority;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Optional;
 
 public interface TaskService {
-    // Basic CRUD operations
-    Task createTask(Task task);
-
-    Optional<Task> getTaskById(Long id);
-
-    List<Task> getAllTasks();
-
-    Task updateTask(Long id, Task task);
-
+    
+    // ==================== BASIC CRUD OPERATIONS ====================
+    TaskResponseDTO createTask(TaskCreateDTO createDTO);
+    TaskResponseDTO getTaskById(Long id);
+    List<TaskResponseDTO> getAllTasks();
+    TaskResponseDTO updateTask(Long id, TaskUpdateDTO updateDTO);
     void deleteTask(Long id);
 
-    // Tasks by project
-    List<Task> getTasksByProjectId(Long projectId);
+    // ==================== TASKS BY PROJECT ====================
+    List<TaskSummaryDTO> getTasksByProjectId(Long projectId);
+    List<TaskSummaryDTO> getTasksByProjectIdOrderByDate(Long projectId);
+    Page<TaskSummaryDTO> getTasksByProjectIdPaginated(Long projectId, Pageable pageable);
+    List<TaskSummaryDTO> getTasksByProjectIdAndStatus(Long projectId, TaskStatus status);
 
-    List<Task> getTasksByProjectIdOrderByDate(Long projectId);
+    // ==================== TASKS BY USER ====================
+    List<TaskSummaryDTO> getTasksByAssigneeId(Long assigneeId);
+    List<TaskSummaryDTO> getTasksByAssigneeIdOrderByDueDate(Long assigneeId);
+    List<TaskSummaryDTO> getTasksByCreatorId(Long creatorId);
+    List<TaskSummaryDTO> getTasksByAssigneeIdAndStatus(Long assigneeId, TaskStatus status);
 
-    Page<Task> getTasksByProjectId(Long projectId, Pageable pageable);
+    // ==================== TASK SCHEDULING AND DEADLINES ====================
+    List<TaskSummaryDTO> getTasksDueInRange(Long assigneeId, LocalDateTime start, LocalDateTime end);
+    List<TaskSummaryDTO> getOverdueTasks(Long assigneeId);
+    List<TaskSummaryDTO> getTasksDueSoon(Long assigneeId, int daysAhead);
+    List<TaskSummaryDTO> getAllOverdueTasks();
 
-    List<Task> getTasksByProjectIdAndStatus(Long projectId, TaskStatus status);
+    // ==================== TASK STATUS MANAGEMENT ====================
+    TaskResponseDTO updateTaskStatus(Long id, TaskStatus status);
+    TaskResponseDTO updateTaskPriority(Long id, Priority priority);
+    TaskResponseDTO assignTask(Long taskId, Long assigneeId);
+    TaskResponseDTO unassignTask(Long taskId);
 
-    // Tasks by user
-    List<Task> getTasksByAssigneeId(Long assigneeId);
+    // ==================== SUBTASKS ====================
+    List<TaskSummaryDTO> getSubtasks(Long parentTaskId);
+    TaskResponseDTO createSubtask(Long parentTaskId, TaskCreateDTO subtaskDTO);
 
-    List<Task> getTasksByAssigneeIdOrderByDueDate(Long assigneeId);
-
-    List<Task> getTasksByCreatorId(Long creatorId);
-
-    List<Task> getTasksByAssigneeIdAndStatus(Long assigneeId, TaskStatus status);
-
-    // Task scheduling and deadlines
-    List<Task> getTasksDueInRange(Long assigneeId, LocalDateTime start, LocalDateTime end);
-
-    List<Task> getOverdueTasks(Long assigneeId);
-
-    List<Task> getTasksDueSoon(Long assigneeId, int daysAhead);
-
-    List<Task> getAllOverdueTasks();
-
-    // Task status management
-    Task updateTaskStatus(Long id, TaskStatus status);
-
-    Task updateTaskPriority(Long id, Priority priority);
-
-    Task assignTask(Long taskId, Long assigneeId);
-
-    Task unassignTask(Long taskId);
-
-    // Subtasks
-    List<Task> getSubtasks(Long parentTaskId);
-
-    Task createSubtask(Long parentTaskId, Task subtask);
-
-    // Task statistics
+    // ==================== TASK STATISTICS ====================
     long countTasksByProjectAndStatus(Long projectId, TaskStatus status);
-
     Double getTaskCompletionPercentage(Long projectId);
 
-    // Time tracking
-    Task startTimer(Long taskId);
+    // ==================== TIME TRACKING ====================
+    TaskResponseDTO startTimer(Long taskId);
+    TaskResponseDTO stopTimer(Long taskId);
+    Double getTotalTimeSpent(Long taskId);
 
-    Task stopTimer(Long taskId);
-
-    Long getTotalTimeSpent(Long taskId);
-
-    // Task validation
+    // ==================== TASK VALIDATION ====================
     boolean canUserAccessTask(Long userId, Long taskId);
-
     boolean canUserEditTask(Long userId, Long taskId);
-
     boolean isTaskOverdue(Long taskId);
 
+    // ==================== INTERNAL METHODS ====================
+    Task findTaskEntityById(Long id);
+
+    // Add these new method signatures to your TaskService interface:
+
+    // ==================== ADDITIONAL USEFUL METHODS ====================
+    List<TaskSummaryDTO> getRootTasksByProject(Long projectId);
+    List<TaskSummaryDTO> getUnassignedTasksByProject(Long projectId);
+    List<TaskSummaryDTO> getMilestoneTasksByProject(Long projectId);
+    List<TaskSummaryDTO> getTasksRelatedToUser(Long userId);
+    Long countCompletedTasksByProject(Long projectId);
+    List<TaskSummaryDTO> getRecentTasksByProject(Long projectId, int limit);
+    List<TaskSummaryDTO> getUpcomingTasksForUser(Long assigneeId, int limit);
 }
