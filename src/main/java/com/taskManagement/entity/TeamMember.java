@@ -7,14 +7,12 @@ import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 
-
 @Entity
 @Table(name = "team_members",
         uniqueConstraints = @UniqueConstraint(columnNames = {"team_id", "user_id"}))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-
 public class TeamMember {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -35,6 +33,9 @@ public class TeamMember {
     @Column(name = "joined_at")
     private LocalDateTime joinedAt;
 
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
     @Column(name = "invited_by")
     private Long invitedBy;
 
@@ -44,6 +45,11 @@ public class TeamMember {
     @PrePersist
     protected void onCreate() {
         joinedAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
     }
 
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 }

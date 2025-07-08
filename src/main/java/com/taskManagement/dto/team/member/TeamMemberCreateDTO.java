@@ -22,6 +22,8 @@ public class TeamMemberCreateDTO {
     @NotNull(message = "Team role is required")
     private TeamRole role;
 
+    private Long invitedBy;
+
     @Builder.Default
     private Boolean isActive = true;
 

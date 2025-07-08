@@ -1,71 +1,110 @@
 package com.taskManagement.service;
 
+import com.taskManagement.dto.team.*;
+import com.taskManagement.dto.team.member.TeamMemberResponseDTO;
+import com.taskManagement.dto.team.member.TeamMemberSummaryDTO;
 import com.taskManagement.entity.Team;
-import com.taskManagement.entity.TeamMember;
-import com.taskManagement.entity.TeamRole;
 
 import java.util.List;
 import java.util.Optional;
 
 public interface TeamService {
-    // Basic CRUD operations
-    Team createTeam(Team team);
-
-    Optional<Team> getTeamById(Long id);
-
-    Optional<Team> getTeamByCode(String teamCode);
-
-    List<Team> getAllTeams();
-
-    List<Team> getAllActiveTeams();
-
-    Team updateTeam(Long id, Team team);
-
+    
+    // ==================== BASIC CRUD OPERATIONS ====================
+    
+    TeamResponseDTO createTeam(TeamCreateDTO teamCreateDTO);
+    
+    Optional<TeamResponseDTO> getTeamById(Long id);
+    
+    Optional<TeamResponseDTO> getTeamByCode(String teamCode);
+    
+    List<TeamResponseDTO> getAllTeams();
+    
+    List<TeamResponseDTO> getAllActiveTeams();
+    
+    List<TeamSummaryDTO> getAllTeamsSummary();
+    
+    TeamResponseDTO updateTeam(Long id, TeamUpdateDTO teamUpdateDTO);
+    
     void deleteTeam(Long id);
-
+    
     void deactivateTeam(Long id);
-
+    
     void activateTeam(Long id);
-
-    // Team queries
-    List<Team> getTeamsByUserId(Long userId);
-
-    List<Team> getActiveTeamsByUserId(Long userId);
-
-    List<Team> getTeamsOrderByCreatedDate();
-
-    // Team validation
+    
+    // ==================== TEAM QUERIES ====================
+    
+    List<TeamSummaryDTO> getTeamsByUserId(Long userId);
+    
+    List<TeamSummaryDTO> getActiveTeamsByUserId(Long userId);
+    
+    List<TeamSummaryDTO> getTeamsOrderByCreatedDate();
+    
+    List<TeamSummaryDTO> getTeamsByMemberCount(Integer minMembers, Integer maxMembers);
+    
+    List<TeamSummaryDTO> searchTeamsByName(String namePattern);
+    
+    // ==================== TEAM VALIDATION ====================
+    
     boolean existsByTeamCode(String teamCode);
-
+    
     boolean canUserAccessTeam(Long userId, Long teamId);
-
+    
     boolean isTeamActive(Long teamId);
-
-    // Team code management
+    
+    boolean isTeamFull(Long teamId);
+    
+    boolean hasAvailableSlots(Long teamId);
+    
+    // ==================== TEAM CODE MANAGEMENT ====================
+    
     String generateUniqueTeamCode();
-
-    Team updateTeamCode(Long teamId, String newTeamCode);
-
-    // Team settings
-    Team updateTeamSettings(Long id, String name, String description, String colorCode);
-
-    Team updateTeamAvatar(Long id, String avatarUrl);
-
-    // Team statistics
+    
+    TeamResponseDTO updateTeamCode(Long teamId, String newTeamCode);
+    
+    // ==================== TEAM SETTINGS ====================
+    
+    TeamResponseDTO updateTeamSettings(Long id, String name, String description, String avatarUrl);
+    
+    TeamResponseDTO updateTeamAvatar(Long id, String avatarUrl);
+    
+    TeamResponseDTO updateTeamCapacity(Long id, Integer maxMembers);
+    
+    // ==================== TEAM MEMBER MANAGEMENT ====================
+    
+    List<TeamMemberSummaryDTO> getTeamMembers(Long teamId);
+    
+    List<TeamMemberSummaryDTO> getActiveTeamMembers(Long teamId);
+    
+    List<TeamMemberSummaryDTO> getTeamMembersByRole(Long teamId, String role);
+    
+    Integer getTeamMemberCount(Long teamId);
+    
+    Integer getActiveTeamMemberCount(Long teamId);
+    
+    // ==================== TEAM STATISTICS ====================
+    
     long getTotalTeamCount();
-
+    
     long getActiveTeamCount();
-
-    List<Team> getRecentTeams(int limit);
-
-    List<Team> getPopularTeams(int limit);
-
-    // Team archiving
-    Team archiveTeam(Long teamId);
-
-    Team unarchiveTeam(Long teamId);
-
-    List<Team> getArchivedTeams();
-
-
+    
+    List<TeamSummaryDTO> getRecentTeams(int limit);
+    
+    List<TeamSummaryDTO> getPopularTeams(int limit);
+    
+    TeamStatsDTO getTeamStatistics(Long teamId);
+    
+    // ==================== TEAM ARCHIVING ====================
+    
+    TeamResponseDTO archiveTeam(Long teamId);
+    
+    TeamResponseDTO unarchiveTeam(Long teamId);
+    
+    List<TeamSummaryDTO> getArchivedTeams();
+    
+    // ==================== INTERNAL METHODS (Entity-based for other services) ====================
+    
+    Team findTeamEntityById(Long id);
+    
+    Team findTeamEntityByCode(String teamCode);
 }

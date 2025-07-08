@@ -151,7 +151,7 @@ public class ProjectMapper {
                 .id(team.getId())
                 .name(team.getName())
                 .description(team.getDescription())
-                .memberCount(team.getMembers() != null ? team.getMembers().size() : 0)
+                .currentMemberCount(team.getMembers() != null ? team.getMembers().size() : 0)
                 .build();
     }
 
